@@ -3,17 +3,26 @@ const router = express.Router();
 const { NotFound, BadRequest } = require("http-errors");
 
 const { Contact, joiShema } = require("../../model/contacts");
+const { authenticate } = require("../../middlewares");
 
-router.get("/", async (req, res, next) => {
+router.get("/", authenticate, async (req, res, next) => {
   try {
-    const contacts = await Contact.find();
+    console.log(req.query);
+    const { page = 1, limit = 20, favorite = true } = req.query;
+    const skip = (page - 1) * limit;
+    const { _id } = req.user;
+    const contacts = await Contact.find(
+      { owner: _id, favorite },
+      "-createdAt -updatedAt",
+      { skip, limit: Number(limit) }
+    );
     res.json(contacts);
   } catch (e) {
     next(e);
   }
 });
 
-router.get("/:contactId", async (req, res, next) => {
+router.get("/:contactId", authenticate, async (req, res, next) => {
   try {
     const { contactId } = req.params;
     const contact = await Contact.findById(contactId);
@@ -29,13 +38,14 @@ router.get("/:contactId", async (req, res, next) => {
   }
 });
 
-router.post("/", async (req, res, next) => {
+router.post("/", authenticate, async (req, res, next) => {
   try {
     const { error } = joiShema.validate(req.body);
     if (error) {
       throw new BadRequest("missing required name field");
     }
-    const newContact = await Contact.create(req.body);
+    const { _id } = req.user;
+    const newContact = await Contact.create({ ...req.body, owner: _id });
     res.status(201).json(newContact);
   } catch (e) {
     if (e.message.includes("validation failad")) {
@@ -45,7 +55,7 @@ router.post("/", async (req, res, next) => {
   }
 });
 
-router.delete("/:contactId", async (req, res, next) => {
+router.delete("/:contactId", authenticate, async (req, res, next) => {
   try {
     const { contactId } = req.params;
     const deleteContact = await Contact.findByIdAndRemove(contactId);
@@ -58,7 +68,7 @@ router.delete("/:contactId", async (req, res, next) => {
   }
 });
 
-router.put("/:contactId", async (req, res, next) => {
+router.put("/:contactId", authenticate, async (req, res, next) => {
   try {
     // const { error } = joiShema.validate(req.body);
     // if (error) {
@@ -77,7 +87,7 @@ router.put("/:contactId", async (req, res, next) => {
   }
 });
 
-router.patch("/:contactId/favorite", async (req, res, next) => {
+router.patch("/:contactId/favorite", authenticate, async (req, res, next) => {
   try {
     // const { error } = joiShema.validate(req.body);
     // if (error) {
