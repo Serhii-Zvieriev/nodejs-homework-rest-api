@@ -7,7 +7,6 @@ const { authenticate } = require("../../middlewares");
 
 router.get("/", authenticate, async (req, res, next) => {
   try {
-    console.log(req.query);
     const { page = 1, limit = 20, favorite = true } = req.query;
     const skip = (page - 1) * limit;
     const { _id } = req.user;
